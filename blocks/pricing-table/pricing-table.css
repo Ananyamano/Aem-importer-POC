@@ -1,0 +1,105 @@
+.pricing-table {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.pricing-table .pricing-table-plan {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #dadada;
+  border-radius: 12px;
+  padding: 32px 24px;
+  background-color: var(--background-color);
+  position: relative;
+}
+
+.pricing-table .pricing-table-plan.pricing-table-featured {
+  border-color: #eb1000;
+  border-width: 2px;
+}
+
+.pricing-table .pricing-table-plan.pricing-table-featured::before {
+  content: 'Most Popular';
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #eb1000;
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.pricing-table .pricing-table-header {
+  margin-bottom: 8px;
+}
+
+.pricing-table .pricing-table-header h3 {
+  margin: 0;
+  font-size: var(--heading-font-size-m);
+  color: var(--text-color);
+}
+
+.pricing-table .pricing-table-price {
+  margin-bottom: 24px;
+}
+
+.pricing-table .pricing-table-price p {
+  margin: 0;
+  font-size: var(--heading-font-size-xl);
+  font-weight: 700;
+  color: var(--text-color);
+}
+
+.pricing-table .pricing-table-price p em {
+  font-size: var(--body-font-size-s);
+  font-weight: 400;
+  font-style: normal;
+  color: var(--dark-color);
+}
+
+.pricing-table .pricing-table-features ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pricing-table .pricing-table-features ul li {
+  padding-left: 24px;
+  position: relative;
+  font-size: var(--body-font-size-s);
+  color: var(--dark-color);
+}
+
+.pricing-table .pricing-table-features ul li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: #eb1000;
+  font-weight: 700;
+}
+
+.pricing-table .pricing-table-cta a.button {
+  width: 100%;
+  justify-content: center;
+}
+
+@media (width >= 900px) {
+  .pricing-table {
+    flex-direction: row;
+    align-items: stretch;
+  }
+
+  .pricing-table .pricing-table-plan {
+    flex: 1;
+    display: grid;
+    grid-template-rows: auto auto 1fr auto;
+  }
+}

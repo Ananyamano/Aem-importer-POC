@@ -555,12 +555,14 @@ function transformCognizant(doc, url) {
   append(block('Form', [['/forms/contact']], doc));
   staging.appendChild(wrapSection(buildMetadata(doc), doc));
 
-  // Replace main's content with exactly what we staged.
-  // The importer requires the returned element to be in the live document tree.
-  while (root.firstChild) root.removeChild(root.firstChild);
-  while (staging.firstChild) root.appendChild(staging.firstChild);
+  // Wipe the entire body and replace with only our staged content.
+  // The importer clones the full document (including header/footer) and passes
+  // it to html2md. Clearing body is the only reliable way to prevent chrome
+  // from leaking into the converted output.
+  while (doc.body.firstChild) doc.body.removeChild(doc.body.firstChild);
+  while (staging.firstChild) doc.body.appendChild(staging.firstChild);
 
-  return [{ element: root, path: new URL(url).pathname.replace(/\/$/, '') || '/index' }];
+  return [{ element: doc.body, path: new URL(url).pathname.replace(/\/$/, '') || '/index' }];
 }
 
 // ===========================================================================

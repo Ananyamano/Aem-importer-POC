@@ -294,6 +294,82 @@ function transformFeatureCards(main, doc) {
 }
 
 // ---------------------------------------------------------------------------
+// Awards / Certifications (3-column)
+// Selector: .box.section.bg-grey.wrapper-max-width-1024px
+// Contains: h3 "Awards" heading, three col-md-4 award cards (h4 + p),
+//           and a "See more" CTA link to /who-we-are/awards.
+// The award icons are inline SVGs — omitted as decorative non-content.
+// ---------------------------------------------------------------------------
+function transformAwardsCertifications(main, doc) {
+  const container = main.querySelector('[class*="bg-grey"][class*="wrapper-max-width-1024px"]');
+  if (!container) return;
+
+  // Heading above the grid
+  const heading = container.querySelector('h3');
+
+  // The three award columns each have class col-md-4
+  const awardCols = container.querySelectorAll('[class*="col-md-4"]');
+  if (!awardCols.length) return;
+
+  const rows = [];
+  awardCols.forEach((col) => {
+    const h4 = col.querySelector('h4');
+    const p = col.querySelector('p');
+
+    const cell = doc.createElement('div');
+    if (h4) cell.appendChild(h4.cloneNode(true));
+    if (p) cell.appendChild(p.cloneNode(true));
+    rows.push([cell]);
+  });
+
+  const cardsTable = block('Cards', rows, doc);
+
+  const seeMore = container.querySelector('a[href*="/who-we-are/awards"]');
+
+  const section = doc.createElement('div');
+  if (heading) section.appendChild(heading.cloneNode(true));
+  section.appendChild(cardsTable);
+  if (seeMore) {
+    section.appendChild(primaryButton(doc, seeMore.getAttribute('href'), seeMore.textContent.trim()));
+  }
+
+  container.replaceWith(section);
+}
+
+// ---------------------------------------------------------------------------
+// Careers CTA Banner
+// Selector: .box.section.wrapper-margins-20px.wrapper-max-width-1024px (no bg-grey)
+// Contains: richText column (h4 "Careers", body text, two CTA links)
+//           + responsive-image column (data-src lazy image)
+// Maps to a two-column Columns block.
+// ---------------------------------------------------------------------------
+function transformCareersCTA(main, doc) {
+  // The awards container also matches wrapper-max-width-1024px — skip bg-grey variant
+  const allContainers = main.querySelectorAll('[class*="wrapper-max-width-1024px"]');
+  const container = [...allContainers].find((el) => !el.classList.contains('bg-grey'));
+  if (!container) return;
+
+  const richTextCol = container.querySelector('.richText.component');
+  const imageCol = container.querySelector('[class*="reference-responsive-image"]');
+  if (!richTextCol && !imageCol) return;
+
+  const textCell = doc.createElement('div');
+  if (richTextCol) {
+    const content = richTextCol.querySelector('.richText-content');
+    if (content) textCell.appendChild(content.cloneNode(true));
+  }
+
+  const imageCell = doc.createElement('div');
+  if (imageCol) {
+    const img = imageCol.querySelector('img');
+    if (img) imageCell.appendChild(img.cloneNode(true));
+  }
+
+  const columnsTable = block('Columns', [[textCell, imageCell]], doc);
+  container.replaceWith(columnsTable);
+}
+
+// ---------------------------------------------------------------------------
 // Main export
 // ---------------------------------------------------------------------------
 export default {
@@ -310,6 +386,8 @@ export default {
     transformHeroCarousel(main, doc);
     transformBrandsCarousel(main, doc);
     transformFeatureCards(main, doc);
+    transformAwardsCertifications(main, doc);
+    transformCareersCTA(main, doc);
 
     main.appendChild(wrapSection(buildMetadata(doc), doc));
 

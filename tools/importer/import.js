@@ -585,9 +585,11 @@ function transformCognizant(doc, url) {
 // ===========================================================================
 export default {
   transform({ document: doc, url }) {
-    const { hostname } = new URL(url);
+    const parsed = new URL(url);
+    const hostParam = parsed.searchParams.get('host') || '';
+    const effectiveHost = hostParam || parsed.hostname;
 
-    if (hostname.includes('cognizant.com')) {
+    if (effectiveHost.includes('cognizant.com')) {
       return transformCognizant(doc, url);
     }
 

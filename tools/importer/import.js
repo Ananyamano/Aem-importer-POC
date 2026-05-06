@@ -535,6 +535,21 @@ function transformCognizant(doc, url) {
 
   const root = doc.querySelector('main') || doc.body;
 
+  // Diagnostic: log what key selectors resolve to so mismatches are visible in the browser console.
+  const diag = {
+    rootTag: root.tagName,
+    earnings: !!root.querySelector('.cmp-experiencefragment--homepage-earnings'),
+    hero: !!root.querySelector('.cmp-experiencefragment--homepage_banner'),
+    valueProp: !!root.querySelector('.cmp-experiencefragment--value_prop'),
+    video: !!root.querySelector('.cmp-experiencefragment--video-section1'),
+    caseStudy: !!root.querySelector('[id="case-study"].cmp-container-full'),
+    parallax: !!root.querySelector('.cmp-experiencefragment--banner_parallax'),
+    news: !!root.querySelector('.cog-news-section'),
+    careers: !!root.querySelector('.cog-container--col-two-6-6.bg-primary'),
+  };
+  // eslint-disable-next-line no-console
+  console.log('[CognizantImport]', JSON.stringify(diag));
+
   // Stage output in a detached div so builders can still read from root.
   const staging = doc.createElement('div');
   function append(el) {

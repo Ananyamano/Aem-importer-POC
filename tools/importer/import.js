@@ -535,13 +535,12 @@ function transformCognizant(doc, url) {
 
   const root = doc.querySelector('main') || doc.body;
 
-  // Build output explicitly — only what we want, in order.
-  // This prevents any header/footer/chrome from leaking into the output.
-  const output = doc.createElement('div');
+  // Stage output in a detached div so builders can still read from root.
+  const staging = doc.createElement('div');
   function append(el) {
     if (!el) return;
-    output.appendChild(el);
-    output.appendChild(doc.createElement('hr'));
+    staging.appendChild(el);
+    staging.appendChild(doc.createElement('hr'));
   }
 
   append(buildCognizantEarnings(root, doc));
@@ -554,10 +553,14 @@ function transformCognizant(doc, url) {
   append(block('Form', [['/forms/contact']], doc));
   append(buildCognizantCareers(root, doc));
   append(block('Form', [['/forms/contact']], doc));
+  staging.appendChild(wrapSection(buildMetadata(doc), doc));
 
-  output.appendChild(wrapSection(buildMetadata(doc), doc));
+  // Replace main's content with exactly what we staged.
+  // The importer requires the returned element to be in the live document tree.
+  while (root.firstChild) root.removeChild(root.firstChild);
+  while (staging.firstChild) root.appendChild(staging.firstChild);
 
-  return [{ element: output, path: new URL(url).pathname.replace(/\/$/, '') || '/index' }];
+  return [{ element: root, path: new URL(url).pathname.replace(/\/$/, '') || '/index' }];
 }
 
 // ===========================================================================

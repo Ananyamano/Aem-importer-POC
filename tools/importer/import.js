@@ -332,65 +332,42 @@ function extractBgImage(el, doc) {
   const style = el?.getAttribute('style') ?? '';
   const m = style.match(/background-image:\s*url\(([^)]+)\)/i);
   if (!m) return null;
-  // AEM encodes '/' as '\2f' and adds spaces in the URL
-  const url = m[1].replace(/\\2f/gi, '/').replace(/\s+/g, '').replace(/['"]/g, '').trim();
+  const raw = m[1].replace(/\\2f/gi, '/').replace(/\s+/g, '').replace(/['"]/g, '').trim();
   const img = doc.createElement('img');
-  img.src = url;
+  img.src = raw;
   img.alt = '';
   return img;
 }
 
 function cleanupCognizant(doc) {
-  [
-    'header',
-    'footer',
-    '.cog-header',
-    '.cmp-page__skiptomaincontent-link',
-    '.cmp-experiencefragment--header',
-    '.cmp-experiencefragment--worldwide',
-    '.cmp-experiencefragment--footer',
-    '.cmp-experiencefragment--homepage_press_release',
-    '.sticky-wrapper',
-    '.contact-sticky',
-    '#sticky-modal',
-    '#sticky-model',
-    '#onetrust-consent-sdk',
-    '.cookie-banner',
-    '[id*="cookie"]',
-    'script',
-    'style',
-  ].forEach((sel) => doc.querySelectorAll(sel).forEach((el) => el.remove()));
+  ['script', 'style', '#onetrust-consent-sdk', '.cookie-banner', '[id*="cookie"]',
+    '#sticky-modal', '#sticky-model'].forEach((sel) => {
+    doc.querySelectorAll(sel).forEach((el) => el.remove());
+  });
   doc.querySelectorAll('[data-cmp-data-layer]').forEach((el) => el.removeAttribute('data-cmp-data-layer'));
 }
 
-// Earnings ticker bar: single line press release text + link → keep as default content
-function transformCognizantEarningsBanner(main, doc) {
-  const xf = main.querySelector('.cmp-experiencefragment--homepage-earnings');
-  if (!xf) return;
-
-  // Extract the single text node (h3 with link)
-  const textEl = xf.querySelector('.cmp-text');
-  if (!textEl) { xf.remove(); return; }
-
+// Earnings ticker bar: h3/link text line
+function buildCognizantEarnings(root, doc) {
+  const xf = root.querySelector('.cmp-experiencefragment--homepage-earnings');
+  const textEl = xf?.querySelector('.cmp-text');
+  if (!textEl) return null;
   const p = doc.createElement('p');
   p.innerHTML = textEl.innerHTML;
-  xf.replaceWith(p);
+  return p;
 }
 
-// Hero banner: bg-image + h1/h4 text + CTA button + 4 mini-teaser cards
-function transformCognizantHero(main, doc) {
-  const xf = main.querySelector('.cmp-experiencefragment--homepage_banner');
-  if (!xf) return;
+// Hero banner: background image + h1/h4 heading + CTA button + 4 mini-teaser cards
+function buildCognizantHero(root, doc) {
+  const xf = root.querySelector('.cmp-experiencefragment--homepage_banner');
+  if (!xf) return null;
 
-  // Background image from inline style
   const bgEl = xf.querySelector('.cmp-container-full[style*="background-image"]');
-  const bgImg = bgEl ? extractBgImage(bgEl, doc) : null;
-
-  // Heading text block (h1 + h4)
   const textCmp = xf.querySelector('.cmp-text');
   const ctaAnchor = xf.querySelector('.button .cmp-button');
 
   const imageCell = doc.createElement('div');
+  const bgImg = bgEl ? extractBgImage(bgEl, doc) : null;
   if (bgImg) imageCell.appendChild(bgImg);
 
   const contentCell = doc.createElement('div');
@@ -400,104 +377,95 @@ function transformCognizantHero(main, doc) {
     contentCell.appendChild(primaryButton(doc, ctaAnchor.href, btnText));
   }
 
-  const heroTable = block('Hero', [[imageCell, contentCell]], doc);
+  const section = doc.createElement('div');
+  section.appendChild(block('Hero', [[imageCell, contentCell]], doc));
 
-  // 4 mini-teaser cards inside the hero (col-four-3-3-3-3 grid)
+  // 4 mini-teaser cards below the hero
   const teaserGrid = xf.querySelector('[class*="col-four-3-3-3-3"]');
-  let cardsTable = null;
   if (teaserGrid) {
-    const teasers = teaserGrid.querySelectorAll('.cmp-teaser');
-    if (teasers.length) {
-      const rows = [];
-      teasers.forEach((teaser) => {
-        const titleLink = teaser.querySelector('.cmp-teaser__title-link');
-        const img = teaser.querySelector('.cmp-image__image');
-        const cta = teaser.querySelector('.cmp-teaser__action-link');
-
-        const cell = doc.createElement('div');
-        if (img) cell.appendChild(img.cloneNode(true));
-        if (titleLink) {
-          const h5 = doc.createElement('h5');
-          h5.textContent = titleLink.textContent.trim();
-          cell.appendChild(h5);
-        }
-        if (cta) {
-          const p = doc.createElement('p');
-          const a = doc.createElement('a');
-          a.href = cta.href;
-          a.textContent = cta.textContent.trim();
-          p.appendChild(a);
-          cell.appendChild(p);
-        }
-        rows.push([cell]);
-      });
-      cardsTable = block('Cards', rows, doc);
+    const rows = [];
+    teaserGrid.querySelectorAll('.cmp-teaser').forEach((teaser) => {
+      const titleLink = teaser.querySelector('.cmp-teaser__title-link');
+      const img = teaser.querySelector('.cmp-image__image');
+      const cta = teaser.querySelector('.cmp-teaser__action-link');
+      const cell = doc.createElement('div');
+      if (img) cell.appendChild(img.cloneNode(true));
+      if (titleLink) {
+        const h5 = doc.createElement('h5');
+        h5.textContent = titleLink.textContent.trim();
+        cell.appendChild(h5);
+      }
+      if (cta) {
+        const p = doc.createElement('p');
+        const a = doc.createElement('a');
+        a.href = cta.href;
+        a.textContent = cta.textContent.trim();
+        p.appendChild(a);
+        cell.appendChild(p);
+      }
+      rows.push([cell]);
+    });
+    if (rows.length) {
+      section.appendChild(doc.createElement('hr'));
+      section.appendChild(block('Cards', rows, doc));
     }
   }
-
-  const section = doc.createElement('div');
-  section.appendChild(heroTable);
-  if (cardsTable) {
-    const hr = doc.createElement('hr');
-    section.appendChild(hr);
-    section.appendChild(cardsTable);
-  }
-
-  xf.replaceWith(section);
+  return section;
 }
 
-// Parallax/video teaser sections: bg-image + teaser title/description/CTA → Hero block
-// Handles: cmp-experiencefragment--video-section1, cmp-experiencefragment--banner_parallax
-function transformCognizantParallaxTeasers(main, doc) {
-  ['.cmp-experiencefragment--video-section1', '.cmp-experiencefragment--banner_parallax'].forEach((sel) => {
-    const xf = main.querySelector(sel);
-    if (!xf) return;
-
-    const bgEl = xf.querySelector('.cmp-container-full[style*="background-image"]');
-    const bgImg = bgEl ? extractBgImage(bgEl, doc) : null;
-
-    const teaser = xf.querySelector('.cmp-teaser');
-    if (!teaser && !bgImg) { xf.remove(); return; }
-
-    const title = teaser?.querySelector('.cmp-teaser__title');
-    const desc = teaser?.querySelector('.cmp-teaser__description');
-    const cta = teaser?.querySelector('.cmp-teaser__action-link');
-
-    const imageCell = doc.createElement('div');
-    if (bgImg) imageCell.appendChild(bgImg);
-
-    const contentCell = doc.createElement('div');
-    if (title) contentCell.appendChild(title.cloneNode(true));
-    if (desc) contentCell.appendChild(desc.cloneNode(true));
-    if (cta) contentCell.appendChild(primaryButton(doc, cta.href, cta.textContent.trim()));
-
-    xf.replaceWith(block('Hero', [[imageCell, contentCell]], doc));
-  });
+// Value proposition: h4 intro text as default content
+function buildCognizantValueProp(root, doc) {
+  const xf = root.querySelector('.cmp-experiencefragment--value_prop');
+  const textEl = xf?.querySelector('.cmp-text');
+  if (!textEl) return null;
+  const div = doc.createElement('div');
+  div.innerHTML = textEl.innerHTML;
+  return div;
 }
 
-// Case studies: heading + 4 teaser cards with category/title/description/image → Cards block
-function transformCognizantCaseStudies(main, doc) {
-  const caseStudyContainer = main.querySelector('#case-study');
-  if (!caseStudyContainer) return;
+// Parallax / video teaser: background image + teaser title/description/CTA → Hero block
+function buildCognizantParallaxTeaser(root, doc, selector) {
+  const xf = root.querySelector(selector);
+  if (!xf) return null;
 
-  // Heading and intro text sit just before the card grid
-  const textCmp = caseStudyContainer.querySelector('.cmp-text');
+  const bgEl = xf.querySelector('.cmp-container-full[style*="background-image"]');
+  const bgImg = bgEl ? extractBgImage(bgEl, doc) : null;
+  const teaser = xf.querySelector('.cmp-teaser');
+
+  const imageCell = doc.createElement('div');
+  if (bgImg) imageCell.appendChild(bgImg);
+
+  const contentCell = doc.createElement('div');
+  const title = teaser?.querySelector('.cmp-teaser__title');
+  const desc = teaser?.querySelector('.cmp-teaser__description');
+  const cta = teaser?.querySelector('.cmp-teaser__action-link');
+  if (title) contentCell.appendChild(title.cloneNode(true));
+  if (desc) contentCell.appendChild(desc.cloneNode(true));
+  if (cta) contentCell.appendChild(primaryButton(doc, cta.href, cta.textContent.trim()));
+
+  if (!bgImg && !title) return null;
+  return block('Hero', [[imageCell, contentCell]], doc);
+}
+
+// Case studies: h3 heading + intro + 4 hover-reveal cards → Cards block
+function buildCognizantCaseStudies(root, doc) {
+  const container = root.querySelector('[id="case-study"].cmp-container-full');
+  if (!container) return null;
+
+  const textCmp = container.querySelector('.cmp-text');
   const heading = textCmp?.querySelector('h3');
   const intro = textCmp?.querySelector('p');
 
-  // Cards are .cog-custom-teaser elements; use the show-on-hover variant for full content
-  const teasers = caseStudyContainer.querySelectorAll('.cmp-teaser.align-items-end');
-  if (!teasers.length) return;
+  const teasers = container.querySelectorAll('.cmp-teaser.align-items-end');
+  if (!teasers.length) return null;
 
   const rows = [];
   teasers.forEach((teaser) => {
-    // Use the show-on-hover panel which has pretitle + title + description
     const panel = teaser.querySelector('.show-on-hover') || teaser;
     const pretitle = panel.querySelector('.cmp-teaser__pretitle');
     const title = panel.querySelector('.cmp-teaser__title');
     const desc = panel.querySelector('.cmp-teaser__description');
     const img = teaser.querySelector('.cmp-teaser__image .cmp-image__image');
-
     const cell = doc.createElement('div');
     if (img) cell.appendChild(img.cloneNode(true));
     if (pretitle) {
@@ -510,22 +478,19 @@ function transformCognizantCaseStudies(main, doc) {
     rows.push([cell]);
   });
 
-  if (!rows.length) return;
+  if (!rows.length) return null;
 
   const section = doc.createElement('div');
   if (heading) section.appendChild(heading.cloneNode(true));
   if (intro) section.appendChild(intro.cloneNode(true));
   section.appendChild(block('Cards', rows, doc));
-
-  // Replace the outer wrapper (the ctscontainerwidthcontrol div that contains the case study id)
-  const outerWrapper = caseStudyContainer.closest('[class*="ctscontainerwidthcontrol"]') || caseStudyContainer;
-  outerWrapper.replaceWith(section);
+  return section;
 }
 
-// News section: dynamic RSS feed — keep heading + "See all" CTA, drop empty container
-function transformCognizantNews(main, doc) {
-  const newsSection = main.querySelector('.cog-news-section');
-  if (!newsSection) return;
+// News section: h3 heading + "See all news" CTA (feed is client-rendered, not importable)
+function buildCognizantNews(root, doc) {
+  const newsSection = root.querySelector('.cog-news-section');
+  if (!newsSection) return null;
 
   const heading = newsSection.querySelector('h3');
   const seeAllBtn = newsSection.querySelector('#button-all-news');
@@ -534,73 +499,65 @@ function transformCognizantNews(main, doc) {
   if (heading) section.appendChild(heading.cloneNode(true));
   if (seeAllBtn) {
     section.appendChild(
-      primaryButton(doc, seeAllBtn.href, seeAllBtn.querySelector('.cmp-button__text')?.textContent?.trim() || 'See all news'),
+      primaryButton(
+        doc,
+        seeAllBtn.href,
+        seeAllBtn.querySelector('.cmp-button__text')?.textContent?.trim() || 'See all news',
+      ),
     );
   }
-
-  newsSection.replaceWith(section);
+  return section;
 }
 
-// Careers promo teaser: bg-image + title + CTA buttons → Hero block
-function transformCognizantCareersBanner(main, doc) {
-  // Find cmp-teaser elements not already inside a handled XF container
-  main.querySelectorAll('.cmp-teaser').forEach((teaser) => {
-    // Skip teasers already inside recognised XF sections (handled by other transforms)
-    const inHandledXF = teaser.closest([
-      '.cmp-experiencefragment--homepage_banner',
-      '.cmp-experiencefragment--video-section1',
-      '.cmp-experiencefragment--banner_parallax',
-      '#case-study',
-      '.cog-news-section',
-    ].join(','));
-    if (inHandledXF) return;
+// Careers promo: recruitment image + "Drive your career forward. Fast." → Columns block
+function buildCognizantCareers(root, doc) {
+  const container = root.querySelector('.cog-container--col-two-6-6.bg-primary');
+  if (!container) return null;
 
-    const bgEl = teaser.closest('[style*="background-image"]') || teaser.querySelector('[style*="background-image"]');
-    const bgImg = bgEl ? extractBgImage(bgEl, doc) : null;
+  const img = container.querySelector('.cmp-image__image');
+  const title = container.querySelector('.cmp-teaser__title');
+  const cta = container.querySelector('.cmp-teaser__action-link');
 
-    const title = teaser.querySelector('.cmp-teaser__title');
-    const desc = teaser.querySelector('.cmp-teaser__description');
-    const cta = teaser.querySelector('.cmp-teaser__action-link');
+  const imageCell = doc.createElement('div');
+  if (img) imageCell.appendChild(img.cloneNode(true));
 
-    const imageCell = doc.createElement('div');
-    if (bgImg) imageCell.appendChild(bgImg);
+  const contentCell = doc.createElement('div');
+  if (title) contentCell.appendChild(title.cloneNode(true));
+  if (cta) contentCell.appendChild(primaryButton(doc, cta.href, cta.textContent.trim()));
 
-    const contentCell = doc.createElement('div');
-    if (title) contentCell.appendChild(title.cloneNode(true));
-    if (desc) contentCell.appendChild(desc.cloneNode(true));
-    if (cta) contentCell.appendChild(primaryButton(doc, cta.href, cta.textContent.trim()));
-
-    const outerWrapper = teaser.closest('[class*="cmp-container"], [class*="experiencefragment"]') || teaser;
-    outerWrapper.replaceWith(block('Hero', [[imageCell, contentCell]], doc));
-  });
-}
-
-// Contact forms: stub as Form block pointing to a future /forms/ path
-function transformCognizantForms(main, doc) {
-  main.querySelectorAll('.cmp-experiencefragment--contactus_widget_form').forEach((xf) => {
-    xf.replaceWith(block('Form', [['/forms/contact']], doc));
-  });
+  return block('Columns', [[imageCell, contentCell]], doc);
 }
 
 function transformCognizant(doc, url) {
   cleanupCognizant(doc);
+  fixLinks(doc.body, url);
+  fixLazyImages(doc.body);
 
-  const main = doc.querySelector('main') || doc.body;
+  const root = doc.querySelector('main') || doc.body;
 
-  fixLinks(main, url);
-  fixLazyImages(main);
+  // Build output explicitly — only what we want, in order.
+  // This prevents any header/footer/chrome from leaking into the output.
+  const output = doc.createElement('div');
+  function append(el) {
+    if (!el) return;
+    output.appendChild(el);
+    output.appendChild(doc.createElement('hr'));
+  }
 
-  transformCognizantEarningsBanner(main, doc);
-  transformCognizantHero(main, doc);
-  transformCognizantParallaxTeasers(main, doc);
-  transformCognizantCaseStudies(main, doc);
-  transformCognizantNews(main, doc);
-  transformCognizantCareersBanner(main, doc);
-  transformCognizantForms(main, doc);
+  append(buildCognizantEarnings(root, doc));
+  append(buildCognizantHero(root, doc));
+  append(buildCognizantValueProp(root, doc));
+  append(buildCognizantParallaxTeaser(root, doc, '.cmp-experiencefragment--video-section1'));
+  append(buildCognizantCaseStudies(root, doc));
+  append(buildCognizantParallaxTeaser(root, doc, '.cmp-experiencefragment--banner_parallax'));
+  append(buildCognizantNews(root, doc));
+  append(block('Form', [['/forms/contact']], doc));
+  append(buildCognizantCareers(root, doc));
+  append(block('Form', [['/forms/contact']], doc));
 
-  main.appendChild(wrapSection(buildMetadata(doc), doc));
+  output.appendChild(wrapSection(buildMetadata(doc), doc));
 
-  return [{ element: main, path: new URL(url).pathname.replace(/\/$/, '') || '/index' }];
+  return [{ element: output, path: new URL(url).pathname.replace(/\/$/, '') || '/index' }];
 }
 
 // ===========================================================================

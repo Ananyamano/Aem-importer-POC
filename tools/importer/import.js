@@ -156,7 +156,15 @@ function fixLinks(main, url) {
     } catch (_) { /* leave malformed */ }
   });
   main.querySelectorAll('img[src]').forEach((img) => {
-    try { img.src = new URL(img.getAttribute('src'), origin).href; } catch (_) { /* skip */ }
+    try {
+      const resolved = new URL(img.getAttribute('src'), origin);
+      // AEM Importer proxies through localhost — rewrite to real origin
+      if (resolved.hostname === 'localhost') {
+        img.src = `${origin}${resolved.pathname}${resolved.search}`;
+      } else {
+        img.src = resolved.href;
+      }
+    } catch (_) { /* skip */ }
   });
 }
 

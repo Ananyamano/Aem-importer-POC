@@ -1,7 +1,7 @@
 /* global WebImporter */
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Shared helpers
 // ---------------------------------------------------------------------------
 function block(name, rows, doc) {
   const table = doc.createElement('table');
@@ -50,51 +50,6 @@ function fixLazyImages(root) {
   });
 }
 
-// ---------------------------------------------------------------------------
-// Cleanup
-// Removes Colgate-specific cruft: header, nav, footer, analytics trackers,
-// inline responsive-element scripts, AEM-specific aria anchors, spacers,
-// consent banners, and chat widgets.
-// ---------------------------------------------------------------------------
-function cleanup(doc) {
-  WebImporter.DOMUtils.remove(doc, [
-    // Site chrome
-    '#header',
-    '#footer',
-    // AEM invisible aria anchors
-    'a[aria-hidden="true"]',
-    // Inline analytics / tracking helpers
-    '.analytics-image-tracking',
-    // Responsive-element JS-driven spacers & overlays
-    '.vertical-spacer',
-    '[class*="reference-vertical-spacer"]',
-    // Consent / cookie banners
-    '#onetrust-consent-sdk',
-    '#consent_blackbar',
-    '.cookie-banner',
-    '[id*="cookie"]',
-    // Exit notification overlay
-    '#exit-notification',
-    // Boomerang performance script artefact
-    '#boomr-scr-as',
-    // Box-more "Read more" cover links (duplicates of .cta links)
-    '.box-more-title',
-    '.box-more-arrow',
-    // IE conditional comments are already stripped by the parser
-  ]);
-
-  // Strip inline <style> and <script> blocks injected by responsive-element component
-  doc.querySelectorAll('.responsive-element script, .responsive-element style').forEach((el) => el.remove());
-
-  // Unwrap SS-* span wrappers (purely presentational inline-style utility classes)
-  doc.querySelectorAll('[class*="ss--"], [class*="ss-max"]').forEach((span) => {
-    span.replaceWith(...span.childNodes);
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Metadata
-// ---------------------------------------------------------------------------
 function buildMetadata(doc) {
   const meta = {};
 
@@ -122,7 +77,6 @@ function buildMetadata(doc) {
   const robots = doc.querySelector('meta[name="robots"]');
   if (robots) meta.Robots = robots.getAttribute('content');
 
-  // hreflang
   const hreflangs = [...doc.querySelectorAll('link[rel="alternate"][hreflang]')];
   if (hreflangs.length > 0) {
     meta.hreflang = hreflangs
@@ -130,7 +84,6 @@ function buildMetadata(doc) {
       .join('\n');
   }
 
-  // JSON-LD schema type
   const jsonLd = doc.querySelector('script[type="application/ld+json"]');
   if (jsonLd) {
     try {
@@ -142,9 +95,6 @@ function buildMetadata(doc) {
   return block('Metadata', Object.entries(meta).map(([k, v]) => [k, v ?? '']), doc);
 }
 
-// ---------------------------------------------------------------------------
-// Fix links and image srcs to absolute
-// ---------------------------------------------------------------------------
 function fixLinks(main, url) {
   const { origin, hostname } = new URL(url);
   main.querySelectorAll('a[href]').forEach((a) => {
@@ -168,13 +118,33 @@ function fixLinks(main, url) {
   });
 }
 
-// ---------------------------------------------------------------------------
-// Hero Banner Carousel
-// Selector: .carousel-slick.image-banner-carousel
-// Each slide is a .richText-largeText-carousel containing:
-//   - .image component (picture) as first child
-//   - .richText component (h1 + p + .cta link) as second child
-// ---------------------------------------------------------------------------
+// ===========================================================================
+// COLGATE PALMOLIVE — https://www.colgatepalmolive.co.in/
+// ===========================================================================
+
+function cleanup(doc) {
+  WebImporter.DOMUtils.remove(doc, [
+    '#header',
+    '#footer',
+    'a[aria-hidden="true"]',
+    '.analytics-image-tracking',
+    '.vertical-spacer',
+    '[class*="reference-vertical-spacer"]',
+    '#onetrust-consent-sdk',
+    '#consent_blackbar',
+    '.cookie-banner',
+    '[id*="cookie"]',
+    '#exit-notification',
+    '#boomr-scr-as',
+    '.box-more-title',
+    '.box-more-arrow',
+  ]);
+  doc.querySelectorAll('.responsive-element script, .responsive-element style').forEach((el) => el.remove());
+  doc.querySelectorAll('[class*="ss--"], [class*="ss-max"]').forEach((span) => {
+    span.replaceWith(...span.childNodes);
+  });
+}
+
 function transformHeroCarousel(main, doc) {
   const container = main.querySelector('.carousel-slick.image-banner-carousel');
   if (!container) return;
@@ -203,15 +173,9 @@ function transformHeroCarousel(main, doc) {
   });
 
   if (!rows.length) return;
-  const carouselTable = block('Carousel', rows, doc);
-  container.replaceWith(carouselTable);
+  container.replaceWith(block('Carousel', rows, doc));
 }
 
-// ---------------------------------------------------------------------------
-// Our Brands Carousel
-// Selector: .carousel-slick.our-brands-carousel
-// Each brand is an image wrapped in an <a> link.
-// ---------------------------------------------------------------------------
 function transformBrandsCarousel(main, doc) {
   const container = main.querySelector('.carousel-slick.our-brands-carousel');
   if (!container) return;
@@ -248,18 +212,12 @@ function transformBrandsCarousel(main, doc) {
   const heading = doc.createElement('h2');
   heading.textContent = 'Our Brands';
 
-  const carouselTable = block('Carousel', rows, doc);
   const section = doc.createElement('div');
   section.appendChild(heading);
-  section.appendChild(carouselTable);
+  section.appendChild(block('Carousel', rows, doc));
   container.replaceWith(section);
 }
 
-// ---------------------------------------------------------------------------
-// Content Feature Cards
-// Selector: .link-covers-element.bottom-to-top
-// Each card has: picture + h4 (title) + p (subtitle) + .cta link
-// ---------------------------------------------------------------------------
 function transformFeatureCards(main, doc) {
   const cards = main.querySelectorAll('.link-covers-element.bottom-to-top');
   if (!cards.length) return;
@@ -286,28 +244,15 @@ function transformFeatureCards(main, doc) {
 
   if (!rows.length) return;
 
-  const cardsTable = block('Cards', rows, doc);
-
-  // Replace the parent wrapper that holds all 4 cards
   const wrapper = cards[0].closest('.paragraphSystem, [class*="wrapper-max-width"]') || cards[0].parentElement;
-  wrapper.replaceWith(cardsTable);
+  wrapper.replaceWith(block('Cards', rows, doc));
 }
 
-// ---------------------------------------------------------------------------
-// Awards / Certifications (3-column)
-// Selector: .box.section.bg-grey.wrapper-max-width-1024px
-// Contains: h3 "Awards" heading, three col-md-4 award cards (h4 + p),
-//           and a "See more" CTA link to /who-we-are/awards.
-// The award icons are inline SVGs — omitted as decorative non-content.
-// ---------------------------------------------------------------------------
 function transformAwardsCertifications(main, doc) {
   const container = main.querySelector('[class*="bg-grey"][class*="wrapper-max-width-1024px"]');
   if (!container) return;
 
-  // Heading above the grid
   const heading = container.querySelector('h3');
-
-  // The three award columns each have class col-md-4
   const awardCols = container.querySelectorAll('[class*="col-md-4"]');
   if (!awardCols.length) return;
 
@@ -315,20 +260,17 @@ function transformAwardsCertifications(main, doc) {
   awardCols.forEach((col) => {
     const h4 = col.querySelector('h4');
     const p = col.querySelector('p');
-
     const cell = doc.createElement('div');
     if (h4) cell.appendChild(h4.cloneNode(true));
     if (p) cell.appendChild(p.cloneNode(true));
     rows.push([cell]);
   });
 
-  const cardsTable = block('Cards', rows, doc);
-
   const seeMore = container.querySelector('a[href*="/who-we-are/awards"]');
 
   const section = doc.createElement('div');
   if (heading) section.appendChild(heading.cloneNode(true));
-  section.appendChild(cardsTable);
+  section.appendChild(block('Cards', rows, doc));
   if (seeMore) {
     section.appendChild(primaryButton(doc, seeMore.getAttribute('href'), seeMore.textContent.trim()));
   }
@@ -336,15 +278,7 @@ function transformAwardsCertifications(main, doc) {
   container.replaceWith(section);
 }
 
-// ---------------------------------------------------------------------------
-// Careers CTA Banner
-// Selector: .box.section.wrapper-margins-20px.wrapper-max-width-1024px (no bg-grey)
-// Contains: richText column (h4 "Careers", body text, two CTA links)
-//           + responsive-image column (data-src lazy image)
-// Maps to a two-column Columns block.
-// ---------------------------------------------------------------------------
 function transformCareersCTA(main, doc) {
-  // The awards container also matches wrapper-max-width-1024px — skip bg-grey variant
   const allContainers = main.querySelectorAll('[class*="wrapper-max-width-1024px"]');
   const container = [...allContainers].find((el) => !el.classList.contains('bg-grey'));
   if (!container) return;
@@ -365,35 +299,287 @@ function transformCareersCTA(main, doc) {
     if (img) imageCell.appendChild(img.cloneNode(true));
   }
 
-  const columnsTable = block('Columns', [[textCell, imageCell]], doc);
-  container.replaceWith(columnsTable);
+  container.replaceWith(block('Columns', [[textCell, imageCell]], doc));
 }
 
-// ---------------------------------------------------------------------------
-// Main export
-// ---------------------------------------------------------------------------
+function transformColgate(doc, url) {
+  cleanup(doc);
+
+  const main = doc.querySelector('#content')
+    || doc.querySelector('[role="main"]')
+    || doc.body;
+
+  fixLinks(main, url);
+  fixLazyImages(main);
+
+  transformHeroCarousel(main, doc);
+  transformBrandsCarousel(main, doc);
+  transformFeatureCards(main, doc);
+  transformAwardsCertifications(main, doc);
+  transformCareersCTA(main, doc);
+
+  main.appendChild(wrapSection(buildMetadata(doc), doc));
+
+  return [{ element: main, path: new URL(url).pathname.replace(/\/$/, '') || '/index' }];
+}
+
+// ===========================================================================
+// COGNIZANT — https://www.cognizant.com/in/en
+// ===========================================================================
+
+// Decode AEM's \2f-encoded background-image URL and create an <img> element.
+function extractBgImage(el, doc) {
+  const style = el?.getAttribute('style') ?? '';
+  const m = style.match(/background-image:\s*url\(([^)]+)\)/i);
+  if (!m) return null;
+  // AEM encodes '/' as '\2f' and adds spaces in the URL
+  const url = m[1].replace(/\\2f/gi, '/').replace(/\s+/g, '').replace(/['"]/g, '').trim();
+  const img = doc.createElement('img');
+  img.src = url;
+  img.alt = '';
+  return img;
+}
+
+function cleanupCognizant(doc) {
+  WebImporter.DOMUtils.remove(doc, [
+    'header',
+    'footer',
+    '.cmp-experiencefragment--header',
+    '.cmp-experiencefragment--worldwide',
+    '.cmp-experiencefragment--footer',
+    // Empty press release fragments (no authored content)
+    '.cmp-experiencefragment--homepage_press_release',
+    // Sticky contact button (modal-based form, not crawlable content)
+    '.sticky-wrapper',
+    '.contact-sticky',
+    // Cookie / consent
+    '#onetrust-consent-sdk',
+    '.cookie-banner',
+  ]);
+  // Remove tracking data attributes to keep output clean
+  doc.querySelectorAll('[data-cmp-data-layer]').forEach((el) => {
+    el.removeAttribute('data-cmp-data-layer');
+  });
+  doc.querySelectorAll('script, style').forEach((el) => el.remove());
+}
+
+// Earnings ticker bar: single line press release text + link → keep as default content
+function transformCognizantEarningsBanner(main, doc) {
+  const xf = main.querySelector('.cmp-experiencefragment--homepage-earnings');
+  if (!xf) return;
+
+  // Extract the single text node (h3 with link)
+  const textEl = xf.querySelector('.cmp-text');
+  if (!textEl) { xf.remove(); return; }
+
+  const p = doc.createElement('p');
+  p.innerHTML = textEl.innerHTML;
+  xf.replaceWith(p);
+}
+
+// Hero banner: bg-image + h1/h4 text + CTA button + 4 mini-teaser cards
+function transformCognizantHero(main, doc) {
+  const xf = main.querySelector('.cmp-experiencefragment--homepage_banner');
+  if (!xf) return;
+
+  // Background image from inline style
+  const bgEl = xf.querySelector('.cmp-container-full[style*="background-image"]');
+  const bgImg = bgEl ? extractBgImage(bgEl, doc) : null;
+
+  // Heading text block (h1 + h4)
+  const textCmp = xf.querySelector('.cmp-text');
+  const ctaAnchor = xf.querySelector('.button .cmp-button');
+
+  const imageCell = doc.createElement('div');
+  if (bgImg) imageCell.appendChild(bgImg);
+
+  const contentCell = doc.createElement('div');
+  if (textCmp) contentCell.appendChild(textCmp.cloneNode(true));
+  if (ctaAnchor) {
+    const btnText = ctaAnchor.querySelector('.cmp-button__text')?.textContent?.trim() || 'Learn more';
+    contentCell.appendChild(primaryButton(doc, ctaAnchor.href, btnText));
+  }
+
+  const heroTable = block('Hero', [[imageCell, contentCell]], doc);
+
+  // 4 mini-teaser cards inside the hero (col-four-3-3-3-3 grid)
+  const teaserGrid = xf.querySelector('[class*="col-four-3-3-3-3"]');
+  let cardsTable = null;
+  if (teaserGrid) {
+    const teasers = teaserGrid.querySelectorAll('.cmp-teaser');
+    if (teasers.length) {
+      const rows = [];
+      teasers.forEach((teaser) => {
+        const titleLink = teaser.querySelector('.cmp-teaser__title-link');
+        const img = teaser.querySelector('.cmp-image__image');
+        const cta = teaser.querySelector('.cmp-teaser__action-link');
+
+        const cell = doc.createElement('div');
+        if (img) cell.appendChild(img.cloneNode(true));
+        if (titleLink) {
+          const h5 = doc.createElement('h5');
+          h5.textContent = titleLink.textContent.trim();
+          cell.appendChild(h5);
+        }
+        if (cta) {
+          const p = doc.createElement('p');
+          const a = doc.createElement('a');
+          a.href = cta.href;
+          a.textContent = cta.textContent.trim();
+          p.appendChild(a);
+          cell.appendChild(p);
+        }
+        rows.push([cell]);
+      });
+      cardsTable = block('Cards', rows, doc);
+    }
+  }
+
+  const section = doc.createElement('div');
+  section.appendChild(heroTable);
+  if (cardsTable) {
+    const hr = doc.createElement('hr');
+    section.appendChild(hr);
+    section.appendChild(cardsTable);
+  }
+
+  xf.replaceWith(section);
+}
+
+// Parallax/video teaser sections: bg-image + teaser title/description/CTA → Hero block
+// Handles: cmp-experiencefragment--video-section1, cmp-experiencefragment--banner_parallax
+function transformCognizantParallaxTeasers(main, doc) {
+  ['.cmp-experiencefragment--video-section1', '.cmp-experiencefragment--banner_parallax'].forEach((sel) => {
+    const xf = main.querySelector(sel);
+    if (!xf) return;
+
+    const bgEl = xf.querySelector('.cmp-container-full[style*="background-image"]');
+    const bgImg = bgEl ? extractBgImage(bgEl, doc) : null;
+
+    const teaser = xf.querySelector('.cmp-teaser');
+    if (!teaser && !bgImg) { xf.remove(); return; }
+
+    const title = teaser?.querySelector('.cmp-teaser__title');
+    const desc = teaser?.querySelector('.cmp-teaser__description');
+    const cta = teaser?.querySelector('.cmp-teaser__action-link');
+
+    const imageCell = doc.createElement('div');
+    if (bgImg) imageCell.appendChild(bgImg);
+
+    const contentCell = doc.createElement('div');
+    if (title) contentCell.appendChild(title.cloneNode(true));
+    if (desc) contentCell.appendChild(desc.cloneNode(true));
+    if (cta) contentCell.appendChild(primaryButton(doc, cta.href, cta.textContent.trim()));
+
+    xf.replaceWith(block('Hero', [[imageCell, contentCell]], doc));
+  });
+}
+
+// Case studies: heading + 4 teaser cards with category/title/description/image → Cards block
+function transformCognizantCaseStudies(main, doc) {
+  const caseStudyContainer = main.querySelector('#case-study');
+  if (!caseStudyContainer) return;
+
+  // Heading and intro text sit just before the card grid
+  const textCmp = caseStudyContainer.querySelector('.cmp-text');
+  const heading = textCmp?.querySelector('h3');
+  const intro = textCmp?.querySelector('p');
+
+  // Cards are .cog-custom-teaser elements; use the show-on-hover variant for full content
+  const teasers = caseStudyContainer.querySelectorAll('.cmp-teaser.align-items-end');
+  if (!teasers.length) return;
+
+  const rows = [];
+  teasers.forEach((teaser) => {
+    // Use the show-on-hover panel which has pretitle + title + description
+    const panel = teaser.querySelector('.show-on-hover') || teaser;
+    const pretitle = panel.querySelector('.cmp-teaser__pretitle');
+    const title = panel.querySelector('.cmp-teaser__title');
+    const desc = panel.querySelector('.cmp-teaser__description');
+    const img = teaser.querySelector('.cmp-teaser__image .cmp-image__image');
+
+    const cell = doc.createElement('div');
+    if (img) cell.appendChild(img.cloneNode(true));
+    if (pretitle) {
+      const small = doc.createElement('p');
+      small.textContent = pretitle.textContent.trim();
+      cell.appendChild(small);
+    }
+    if (title) cell.appendChild(title.cloneNode(true));
+    if (desc) cell.appendChild(desc.cloneNode(true));
+    rows.push([cell]);
+  });
+
+  if (!rows.length) return;
+
+  const section = doc.createElement('div');
+  if (heading) section.appendChild(heading.cloneNode(true));
+  if (intro) section.appendChild(intro.cloneNode(true));
+  section.appendChild(block('Cards', rows, doc));
+
+  // Replace the outer wrapper (the ctscontainerwidthcontrol div that contains the case study id)
+  const outerWrapper = caseStudyContainer.closest('[class*="ctscontainerwidthcontrol"]') || caseStudyContainer;
+  outerWrapper.replaceWith(section);
+}
+
+// News section: dynamic RSS feed — keep heading + "See all" CTA, drop empty container
+function transformCognizantNews(main, doc) {
+  const newsSection = main.querySelector('.cog-news-section');
+  if (!newsSection) return;
+
+  const heading = newsSection.querySelector('h3');
+  const seeAllBtn = newsSection.querySelector('#button-all-news');
+
+  const section = doc.createElement('div');
+  if (heading) section.appendChild(heading.cloneNode(true));
+  if (seeAllBtn) {
+    section.appendChild(
+      primaryButton(doc, seeAllBtn.href, seeAllBtn.querySelector('.cmp-button__text')?.textContent?.trim() || 'See all news'),
+    );
+  }
+
+  newsSection.replaceWith(section);
+}
+
+// Contact forms: stub as Form block pointing to a future /forms/ path
+function transformCognizantForms(main, doc) {
+  main.querySelectorAll('.cmp-experiencefragment--contactus_widget_form').forEach((xf) => {
+    xf.replaceWith(block('Form', [['/forms/contact']], doc));
+  });
+}
+
+function transformCognizant(doc, url) {
+  cleanupCognizant(doc);
+
+  const main = doc.querySelector('main') || doc.body;
+
+  fixLinks(main, url);
+  fixLazyImages(main);
+
+  transformCognizantEarningsBanner(main, doc);
+  transformCognizantHero(main, doc);
+  transformCognizantParallaxTeasers(main, doc);
+  transformCognizantCaseStudies(main, doc);
+  transformCognizantNews(main, doc);
+  transformCognizantForms(main, doc);
+
+  main.appendChild(wrapSection(buildMetadata(doc), doc));
+
+  return [{ element: main, path: new URL(url).pathname.replace(/\/$/, '') || '/index' }];
+}
+
+// ===========================================================================
+// Main export — routes by hostname
+// ===========================================================================
 export default {
   transform({ document: doc, url }) {
-    cleanup(doc);
+    const { hostname } = new URL(url);
 
-    const main = doc.querySelector('#content')
-      || doc.querySelector('[role="main"]')
-      || doc.body;
+    if (hostname.includes('cognizant.com')) {
+      return transformCognizant(doc, url);
+    }
 
-    fixLinks(main, url);
-    fixLazyImages(main);
-
-    transformHeroCarousel(main, doc);
-    transformBrandsCarousel(main, doc);
-    transformFeatureCards(main, doc);
-    transformAwardsCertifications(main, doc);
-    transformCareersCTA(main, doc);
-
-    main.appendChild(wrapSection(buildMetadata(doc), doc));
-
-    return [{
-      element: main,
-      path: new URL(url).pathname.replace(/\/$/, '') || '/index',
-    }];
+    // Default: Colgate Palmolive India
+    return transformColgate(doc, url);
   },
 };

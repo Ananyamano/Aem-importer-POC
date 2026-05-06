@@ -341,26 +341,26 @@ function extractBgImage(el, doc) {
 }
 
 function cleanupCognizant(doc) {
-  WebImporter.DOMUtils.remove(doc, [
+  [
     'header',
     'footer',
+    '.cog-header',
+    '.cmp-page__skiptomaincontent-link',
     '.cmp-experiencefragment--header',
     '.cmp-experiencefragment--worldwide',
     '.cmp-experiencefragment--footer',
-    // Empty press release fragments (no authored content)
     '.cmp-experiencefragment--homepage_press_release',
-    // Sticky contact button (modal-based form, not crawlable content)
     '.sticky-wrapper',
     '.contact-sticky',
-    // Cookie / consent
+    '#sticky-modal',
+    '#sticky-model',
     '#onetrust-consent-sdk',
     '.cookie-banner',
-  ]);
-  // Remove tracking data attributes to keep output clean
-  doc.querySelectorAll('[data-cmp-data-layer]').forEach((el) => {
-    el.removeAttribute('data-cmp-data-layer');
-  });
-  doc.querySelectorAll('script, style').forEach((el) => el.remove());
+    '[id*="cookie"]',
+    'script',
+    'style',
+  ].forEach((sel) => doc.querySelectorAll(sel).forEach((el) => el.remove()));
+  doc.querySelectorAll('[data-cmp-data-layer]').forEach((el) => el.removeAttribute('data-cmp-data-layer'));
 }
 
 // Earnings ticker bar: single line press release text + link → keep as default content
@@ -541,6 +541,40 @@ function transformCognizantNews(main, doc) {
   newsSection.replaceWith(section);
 }
 
+// Careers promo teaser: bg-image + title + CTA buttons → Hero block
+function transformCognizantCareersBanner(main, doc) {
+  // Find cmp-teaser elements not already inside a handled XF container
+  main.querySelectorAll('.cmp-teaser').forEach((teaser) => {
+    // Skip teasers already inside recognised XF sections (handled by other transforms)
+    const inHandledXF = teaser.closest([
+      '.cmp-experiencefragment--homepage_banner',
+      '.cmp-experiencefragment--video-section1',
+      '.cmp-experiencefragment--banner_parallax',
+      '#case-study',
+      '.cog-news-section',
+    ].join(','));
+    if (inHandledXF) return;
+
+    const bgEl = teaser.closest('[style*="background-image"]') || teaser.querySelector('[style*="background-image"]');
+    const bgImg = bgEl ? extractBgImage(bgEl, doc) : null;
+
+    const title = teaser.querySelector('.cmp-teaser__title');
+    const desc = teaser.querySelector('.cmp-teaser__description');
+    const cta = teaser.querySelector('.cmp-teaser__action-link');
+
+    const imageCell = doc.createElement('div');
+    if (bgImg) imageCell.appendChild(bgImg);
+
+    const contentCell = doc.createElement('div');
+    if (title) contentCell.appendChild(title.cloneNode(true));
+    if (desc) contentCell.appendChild(desc.cloneNode(true));
+    if (cta) contentCell.appendChild(primaryButton(doc, cta.href, cta.textContent.trim()));
+
+    const outerWrapper = teaser.closest('[class*="cmp-container"], [class*="experiencefragment"]') || teaser;
+    outerWrapper.replaceWith(block('Hero', [[imageCell, contentCell]], doc));
+  });
+}
+
 // Contact forms: stub as Form block pointing to a future /forms/ path
 function transformCognizantForms(main, doc) {
   main.querySelectorAll('.cmp-experiencefragment--contactus_widget_form').forEach((xf) => {
@@ -561,6 +595,7 @@ function transformCognizant(doc, url) {
   transformCognizantParallaxTeasers(main, doc);
   transformCognizantCaseStudies(main, doc);
   transformCognizantNews(main, doc);
+  transformCognizantCareersBanner(main, doc);
   transformCognizantForms(main, doc);
 
   main.appendChild(wrapSection(buildMetadata(doc), doc));

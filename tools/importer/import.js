@@ -76,7 +76,7 @@ function fixLazyImages(root) {
   root.querySelectorAll('img[data-srcset]').forEach((img) => {
     img.srcset = img.dataset.srcset;
   });
-  // background-image style → <img>
+  // background-image style → <img> (handles AEM \2f encoding)
   root.querySelectorAll('[style*="background-image"]').forEach((el) => {
     const m = el.getAttribute('style').match(/background-image:\s*url\(([^)]+)\)/i);
     if (!m) return;
@@ -120,25 +120,30 @@ function fixLinks(root, url) {
 }
 
 // ---------------------------------------------------------------------------
-// Noise removal — selectors that reliably indicate chrome, not content
+// Noise removal — site-agnostic selectors covering common CMS chrome patterns
 // ---------------------------------------------------------------------------
 const NOISE_SELECTORS = [
-  // structural chrome
+  // Semantic structural chrome
   'header', 'nav', 'footer', 'aside',
   '[role="banner"]', '[role="navigation"]', '[role="contentinfo"]',
-  // scripts / styles / tracking pixels
+  // Scripts / styles / tracking pixels
   'script', 'style', 'noscript', 'link[rel="stylesheet"]',
   'img[width="1"]', 'img[height="1"]',
-  // cookie / consent / modals
+  // Cookie / consent banners
   '#onetrust-consent-sdk', '#consent_blackbar',
   '.cookie-banner', '[id*="cookie"]', '[class*="cookie-"]',
+  // Modals / overlays / popups
   '[id*="modal"]', '[class*="modal"]',
   '[id*="overlay"]', '[class*="overlay"]',
   '[id*="popup"]', '[class*="popup"]',
-  // common CMS chrome
+  // Generic id/class-based chrome
   '[id="header"]', '[id="footer"]',
   '[class*="site-header"]', '[class*="site-footer"]',
-  '[class*="sticky-"]', '[class*="notification-"]',
+  '[class*="sticky-"]', '[class*="notification-bar"]',
+  // AEM Experience Fragment headers/footers
+  '[class*="experiencefragment"][class*="header"]',
+  '[class*="experiencefragment"][class*="footer"]',
+  // Accessibility-hidden decorative elements
   '[aria-hidden="true"]',
 ];
 
@@ -146,21 +151,17 @@ function removeNoise(doc) {
   NOISE_SELECTORS.forEach((sel) => {
     try {
       doc.querySelectorAll(sel).forEach((el) => el.remove());
-    } catch (_) { /* invalid selector in some browsers */ }
+    } catch (_) { /* skip invalid selectors in edge-case browsers */ }
   });
-  // Remove empty elements that add no value
+  // Scrub leftover empty containers
   doc.querySelectorAll('div:empty, span:empty, p:empty').forEach((el) => el.remove());
 }
 
 // ---------------------------------------------------------------------------
-// Generic content extraction
+// Generic content detection — finds the richest main content area
 // ---------------------------------------------------------------------------
-
-/**
- * Find the best "main content" container in priority order:
- * <main>, [role="main"], <article>, largest <section>, <body>
- */
 function findMainContent(doc) {
+  // Priority list: semantic > role > id/class heuristics > body
   const candidates = [
     doc.querySelector('main'),
     doc.querySelector('[role="main"]'),
@@ -170,47 +171,156 @@ function findMainContent(doc) {
     doc.querySelector('.main-content'),
     doc.querySelector('.content'),
     doc.querySelector('.page-content'),
+    doc.querySelector('.container:not([class*="header"]):not([class*="footer"])'),
   ];
-  return candidates.find(Boolean) || doc.body;
+  const valid = candidates.filter(Boolean);
+  if (valid.length === 0) return doc.body;
+  // Prefer the candidate with the most text content
+  return valid.reduce((best, el) => (
+    el.textContent.length > best.textContent.length ? el : best
+  ));
+}
+
+// ---------------------------------------------------------------------------
+// Block builders — applied generically where recognisable patterns are found
+// ---------------------------------------------------------------------------
+
+/**
+ * Convert hero-like sections (large image + heading + CTA) into Hero blocks.
+ * Covers AEM cmp-generic-hero, Bootstrap jumbotron, section[has-background-img], etc.
+ */
+function buildHeroBlocks(content, doc) {
+  const heroSelectors = [
+    '.cmp-generic-hero',
+    '.hero',
+    '.jumbotron',
+    '[class*="hero-section"]',
+    '[class*="banner-section"]',
+    'section[class*="has-background-img"]:first-of-type',
+  ];
+
+  heroSelectors.forEach((sel) => {
+    try {
+      content.querySelectorAll(sel).forEach((hero) => {
+        const img = hero.querySelector('img') || hero.querySelector('picture');
+        const heading = hero.querySelector('h1, h2');
+        const text = hero.querySelector('p, [class*="supporting-text"], [class*="description"]');
+        const cta = hero.querySelector('a[class*="button"], a[class*="btn"], a[class*="cta"]');
+
+        if (!img && !heading) return; // not enough to be a hero
+
+        const imageCell = doc.createElement('div');
+        if (img) imageCell.appendChild(img.cloneNode(true));
+
+        const contentCell = doc.createElement('div');
+        if (heading) contentCell.appendChild(heading.cloneNode(true));
+        if (text) contentCell.appendChild(text.cloneNode(true));
+        if (cta) {
+          const p = doc.createElement('p');
+          const strong = doc.createElement('strong');
+          const a = doc.createElement('a');
+          a.href = cta.href;
+          a.textContent = cta.textContent.trim();
+          strong.appendChild(a);
+          p.appendChild(strong);
+          contentCell.appendChild(p);
+        }
+
+        hero.replaceWith(block('Hero', [[imageCell, contentCell]], doc));
+      });
+    } catch (_) { /* skip bad selectors */ }
+  });
+}
+
+/**
+ * Convert card grids (2+ similar sibling elements with image + heading) into Cards blocks.
+ */
+function buildCardBlocks(content, doc) {
+  const cardSelectors = [
+    '.card-item',
+    '.cmp-call-out-set__item',
+    '[class*="card-item"]',
+    '[class*="callout-item"]',
+    '[class*="card__item"]',
+  ];
+
+  const processed = new Set();
+
+  cardSelectors.forEach((sel) => {
+    try {
+      content.querySelectorAll(sel).forEach((card) => {
+        const parent = card.parentElement;
+        if (!parent || processed.has(parent)) return;
+
+        const siblings = [...parent.querySelectorAll(sel)];
+        if (siblings.length < 2) return;
+        processed.add(parent);
+
+        const rows = siblings.map((c) => {
+          const img = c.querySelector('img, picture');
+          const heading = c.querySelector('h2, h3, h4, h5, [class*="title"]');
+          const text = c.querySelector('p, [class*="description"], [class*="body"]');
+          const link = c.querySelector('a');
+
+          const cell = doc.createElement('div');
+          if (img) cell.appendChild(img.cloneNode(true));
+          if (heading) cell.appendChild(heading.cloneNode(true));
+          if (text) cell.appendChild(text.cloneNode(true));
+          if (link && !heading && !img) {
+            const p = doc.createElement('p');
+            const a = doc.createElement('a');
+            a.href = link.href;
+            a.textContent = link.textContent.trim();
+            p.appendChild(a);
+            cell.appendChild(p);
+          }
+          return [cell];
+        });
+
+        parent.replaceWith(block('Cards', rows, doc));
+      });
+    } catch (_) { /* skip bad selectors */ }
+  });
 }
 
 // ---------------------------------------------------------------------------
 // Generic transform — works for any URL
 // ---------------------------------------------------------------------------
 function transformGeneric(doc, url) {
-  // 1. Remove all noise (nav, footer, scripts, modals, etc.)
+  // 1. Remove all noise (nav, footer, AEM XF header/footer, scripts, modals, etc.)
   removeNoise(doc);
 
-  // 2. Resolve lazy images and absolute links before we move anything
+  // 2. Resolve lazy images and make links absolute before moving nodes
   fixLazyImages(doc.body);
   fixLinks(doc.body, url);
 
-  // 3. Find best content area
+  // 3. Find the richest main content area
   const content = findMainContent(doc);
 
-  // 4. Build the output: content + metadata section
-  const staging = doc.createElement('div');
+  // 4. Convert recognisable patterns into EDS blocks
+  buildHeroBlocks(content, doc);
+  buildCardBlocks(content, doc);
 
-  // Clone content children into staging
+  // 5. Assemble output: content children + metadata section
+  const staging = doc.createElement('div');
   [...content.childNodes].forEach((node) => staging.appendChild(node.cloneNode(true)));
 
-  // Metadata goes in its own section div at the end
   const metaSection = doc.createElement('div');
   metaSection.appendChild(buildMetadata(doc));
   staging.appendChild(metaSection);
 
-  // 5. Wipe body completely — the importer clones the full live document
+  // 6. Wipe body completely — the importer clones the full live document
   // (header + nav + main + footer) before calling transform. Simply returning
   // a sub-element is not enough; we must clear body so nothing else leaks.
   while (doc.body.firstChild) doc.body.removeChild(doc.body.firstChild);
   while (staging.firstChild) doc.body.appendChild(staging.firstChild);
 
-  const { pathname } = new URL(url);
+  // 7. Resolve the real output path (importer proxies via localhost?host=...)
   const parsed = new URL(url);
   const hostParam = parsed.searchParams.get('host');
   const realPath = hostParam
     ? new URL(parsed.pathname, hostParam).pathname
-    : pathname;
+    : parsed.pathname;
 
   return [{
     element: doc.body,

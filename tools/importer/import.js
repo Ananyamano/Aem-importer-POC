@@ -97,24 +97,47 @@ function fixLazyImages(root) {
 }
 
 function fixLinks(root, url) {
-  const { origin, hostname } = new URL(url);
+  // The importer proxies pages via http://localhost:3001/?host=https://real-site.com
+  // so we must resolve relative paths and rewrite localhost URLs against the REAL origin.
+  const parsed = new URL(url);
+  const hostParam = parsed.searchParams.get('host');
+  const realOrigin = hostParam ? new URL(hostParam).origin : parsed.origin;
+  const realHostname = hostParam ? new URL(hostParam).hostname : parsed.hostname;
+
   root.querySelectorAll('a[href]').forEach((a) => {
     try {
-      const abs = new URL(a.getAttribute('href'), origin);
-      a.href = abs.hostname === hostname
+      const abs = new URL(a.getAttribute('href'), realOrigin);
+      // Rewrite localhost proxy hrefs to real origin paths
+      if (abs.hostname === 'localhost') {
+        abs.hostname = realHostname;
+        abs.protocol = new URL(realOrigin).protocol;
+        abs.port = '';
+      }
+      a.href = abs.hostname === realHostname
         ? abs.pathname + abs.search + abs.hash
         : abs.href;
     } catch (_) { /* leave malformed */ }
   });
-  root.querySelectorAll('img[src]').forEach((img) => {
+
+  root.querySelectorAll('img[src], source[srcset]').forEach((el) => {
+    const attr = el.tagName === 'SOURCE' ? 'srcset' : 'src';
+    const val = el.getAttribute(attr);
+    if (!val) return;
     try {
-      const resolved = new URL(img.getAttribute('src'), origin);
-      // Importer proxies through localhost — rewrite to real origin
-      if (resolved.hostname === 'localhost') {
-        img.src = `${origin}${resolved.pathname}${resolved.search}`;
-      } else {
-        img.src = resolved.href;
-      }
+      // srcset can be "url1 1x, url2 2x" — rewrite each URL token
+      const rewritten = val.split(',').map((entry) => {
+        const parts = entry.trim().split(/\s+/);
+        try {
+          const resolved = new URL(parts[0], realOrigin);
+          if (resolved.hostname === 'localhost') {
+            parts[0] = `${realOrigin}${resolved.pathname}${resolved.search}`;
+          } else {
+            parts[0] = resolved.href;
+          }
+        } catch (_) { /* skip */ }
+        return parts.join(' ');
+      }).join(', ');
+      el.setAttribute(attr, rewritten);
     } catch (_) { /* skip */ }
   });
 }

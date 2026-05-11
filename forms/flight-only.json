@@ -1,0 +1,80 @@
+{
+  "total": 8,
+  "offset": 0,
+  "limit": 8,
+  "data": [
+    {
+      "name": "switch-checkbox",
+      "type": "checkbox",
+      "label": "Search for Reward Seats",
+      "placeholder": "",
+      "required": "false",
+      "options": "",
+      "value": ""
+    },
+    {
+      "name": "payment_type",
+      "type": "hidden",
+      "label": "",
+      "placeholder": "",
+      "required": "false",
+      "options": "",
+      "value": ""
+    },
+    {
+      "name": "flights_from",
+      "type": "text",
+      "label": "Flying from",
+      "placeholder": "",
+      "required": "false",
+      "options": "",
+      "value": ""
+    },
+    {
+      "name": "flights_to",
+      "type": "text",
+      "label": "Flying to",
+      "placeholder": "e.g. New York",
+      "required": "false",
+      "options": "",
+      "value": ""
+    },
+    {
+      "name": "trip_type",
+      "type": "text",
+      "label": "Journey",
+      "placeholder": "Journey",
+      "required": "false",
+      "options": "",
+      "value": "Journey"
+    },
+    {
+      "name": "flights_departing",
+      "type": "text",
+      "label": "When",
+      "placeholder": "",
+      "required": "false",
+      "options": "",
+      "value": ""
+    },
+    {
+      "name": "flights_who",
+      "type": "text",
+      "label": "Who",
+      "placeholder": "Who?",
+      "required": "false",
+      "options": "",
+      "value": "1 person"
+    },
+    {
+      "name": "submissionType",
+      "type": "hidden",
+      "label": "",
+      "placeholder": "",
+      "required": "false",
+      "options": "",
+      "value": "FLIGHT_ONLY"
+    }
+  ],
+  ":type": "sheet"
+}

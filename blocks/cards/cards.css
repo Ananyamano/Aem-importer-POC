@@ -1,4 +1,4 @@
-/* cards block — generated from https://www.virginatlantic.com/en-US on 2026-05-11T07:07:12.201Z */
+/* cards block — generated from https://www.virginatlantic.com/en-US on 2026-05-11T10:58:28.244Z */
 
 /* Review and prune: position:absolute, fixed widths, and parent-relative values may not apply in EDS context. */
 
@@ -6,7 +6,7 @@
   padding: 24px 0 24px 32px;
   max-width: 375px;
   overflow: hidden;
-  color: var(--background-color);
+  color: var(--button-text-color);
   background-color: var(--link-color);
   border: 0 none rgb(255 255 255);
   outline: rgb(255 255 255) none 3px;
@@ -20,7 +20,7 @@
 .cards li {
   width: 100%;
   max-width: 203px;
-  color: var(--background-color);
+  color: var(--button-text-color);
   border: 0 none rgb(255 255 255);
   outline: rgb(255 255 255) none 3px;
   font-family: var(--heading-font-family);
@@ -35,7 +35,7 @@
   min-height: 78px;
   height: 100%;
   overflow: clip;
-  color: var(--background-color);
+  color: var(--button-text-color);
   border: 0 none rgb(255 255 255);
   outline: rgb(255 255 255) none 3px;
   font-family: var(--heading-font-family);
@@ -46,7 +46,7 @@
 }
 
 .cards h3 {
-  color: var(--background-color);
+  color: var(--button-text-color);
   border: 0 none rgb(255 255 255);
   outline: rgb(255 255 255) none 3px;
   font-family: var(--heading-font-family);

@@ -69,7 +69,10 @@
   max-width: 60ch;
 }
 
-.carousel .carousel-slide p strong a {
+/* EDS decorateButtons() (in scripts/scripts.js) converts the authored
+   <p><strong><a> pattern into <p class="button-wrapper"><a class="button primary">.
+   Style the post-decoration DOM, not the source DOM. */
+.carousel .carousel-slide a.button.primary {
   display: inline-block;
   padding: 12px 24px;
   background-color: var(--button-bg-color);

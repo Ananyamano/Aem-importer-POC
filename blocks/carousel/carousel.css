@@ -1,50 +1,152 @@
-/* carousel block — generated from https://www.virginatlantic.com/en-US on 2026-05-11T07:07:12.201Z */
-
-/* Review and prune: position:absolute, fixed widths, and parent-relative values may not apply in EDS context. */
+/*
+ * carousel block — virgin atlantic tokens + decorated-DOM-aware rules.
+ *
+ * blocks/carousel/carousel.js builds this structure inside .carousel:
+ *
+ *   .carousel.block
+ *     .carousel-slides           (the track that holds all slides)
+ *       .carousel-slide          (one per slide; one has .carousel-slide-active)
+ *     .carousel-nav              (prev/next buttons)
+ *       .carousel-prev
+ *       .carousel-next
+ *     .carousel-dots             (dot pagination)
+ *       button (one per slide; one has .carousel-dot-active)
+ *
+ * Without these rules, every slide stacks vertically and the nav floats at
+ * the top-right corner of the viewport.
+ */
 
 .carousel {
-  display: flex;
-  height: 873px;
-  overflow: scroll;
-  color: var(--link-color);
-  border: 0 none rgb(3 12 22);
-  outline: rgb(3 12 22) none 3px;
-  font-family: var(--heading-font-family);
-  font-size: var(--body-font-size-m);
-  font-weight: 325;
-  font-style: normal;
-  line-height: var(--heading-font-size-xl);
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  color: var(--text-color);
+  font-family: var(--body-font-family);
 }
 
-.carousel .slide {
-  min-height: auto;
-  height: 873px;
-  color: var(--link-color);
-  border: 0 none rgb(3 12 22);
-  outline: rgb(3 12 22) none 3px;
+.carousel .carousel-slides {
+  position: relative;
+  width: 100%;
+}
+
+.carousel .carousel-slide {
+  position: absolute;
+  inset: 0;
+  display: none;
+  width: 100%;
+}
+
+.carousel .carousel-slide.carousel-slide-active {
+  position: relative;
+  display: block;
+}
+
+/* Slide content: image cell + content cell.
+   The transform emits each slide as <div>image</div><div>content</div>,
+   which EDS wraps in further divs but the immediate children are still
+   those two cells. */
+.carousel .carousel-slide > div > div:first-child {
+  width: 100%;
+}
+
+.carousel .carousel-slide picture,
+.carousel .carousel-slide img {
+  display: block;
+  width: 100%;
+  max-height: 600px;
+  object-fit: cover;
+}
+
+.carousel .carousel-slide h2 {
   font-family: var(--heading-font-family);
-  font-size: var(--body-font-size-m);
+  font-size: var(--heading-font-size-xxl);
   font-weight: 325;
-  font-style: normal;
-  line-height: var(--heading-font-size-xl);
+  margin: 16px 0;
+}
+
+.carousel .carousel-slide p {
+  font-size: var(--body-font-size-m);
+  line-height: 1.5;
+  margin: 0 0 16px;
+  max-width: 60ch;
+}
+
+.carousel .carousel-slide p strong a {
+  display: inline-block;
+  padding: 12px 24px;
+  background-color: var(--text-color);
+  color: var(--background-color);
+  text-decoration: none;
+  border-radius: 999px;
+  font-weight: 500;
+}
+
+/* Nav arrows — overlaid on slide */
+.carousel .carousel-nav {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 16px;
+}
+
+.carousel .carousel-nav button {
+  pointer-events: auto;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: rgb(255 255 255 / 80%);
+  color: var(--text-color);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Dot pagination */
+.carousel .carousel-dots {
+  position: absolute;
+  bottom: 16px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.carousel .carousel-dots button {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: none;
+  background: rgb(255 255 255 / 50%);
+  cursor: pointer;
+  padding: 0;
+}
+
+.carousel .carousel-nav button:hover {
+  background: rgb(255 255 255 / 100%);
+}
+
+.carousel .carousel-dots button.carousel-dot-active {
+  background: rgb(255 255 255);
 }
 
 @media (width >= 600px) {
-  .carousel {
-    height: 472px;
-  }
-
-  .carousel .slide {
-    height: 472px;
+  .carousel .carousel-slide img,
+  .carousel .carousel-slide picture {
+    max-height: 472px;
   }
 }
 
 @media (width >= 900px) {
-  .carousel {
-    height: 534px;
-  }
-
-  .carousel .slide {
-    height: 534px;
+  .carousel .carousel-slide img,
+  .carousel .carousel-slide picture {
+    max-height: 534px;
   }
 }

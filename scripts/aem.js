@@ -592,6 +592,7 @@ function decorateBlocks(main) {
  * @returns {Promise}
  */
 async function loadHeader(header) {
+  if (!header) return undefined;
   const headerBlock = buildBlock('header', '');
   header.append(headerBlock);
   decorateBlock(headerBlock);
@@ -604,6 +605,7 @@ async function loadHeader(header) {
  * @returns {Promise}
  */
 async function loadFooter(footer) {
+  if (!footer) return undefined;
   const footerBlock = buildBlock('footer', '');
   footer.append(footerBlock);
   decorateBlock(footerBlock);
@@ -633,6 +635,7 @@ async function waitForFirstImage(section) {
  */
 
 async function loadSection(section, loadCallback) {
+  if (!section) return;
   const status = section.dataset.sectionStatus;
   if (!status || status === 'initialized') {
     section.dataset.sectionStatus = 'loading';
@@ -653,6 +656,7 @@ async function loadSection(section, loadCallback) {
  */
 
 async function loadSections(element) {
+  if (!element) return;
   const sections = [...element.querySelectorAll('div.section')];
   for (let i = 0; i < sections.length; i += 1) {
     // eslint-disable-next-line no-await-in-loop

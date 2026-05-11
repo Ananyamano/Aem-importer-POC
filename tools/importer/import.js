@@ -543,6 +543,68 @@ function browserExtractor() {
     'text-align', 'text-transform', 'text-decoration', 'white-space', 'opacity', 'transform',
   ];
 
+  // Primary-CTA selector — broad enough to catch most sites' primary buttons
+  // (native <button>, anchor-styled-as-button, role=button, CTA classnames)
+  // without depending on framework-specific class hashes. Source-side
+  // transformers may consume the source button into a different EDS block,
+  // so capturing button styling here as site-wide tokens means any block CSS
+  // (carousel CTA, card link, form submit, etc.) can reference
+  // var(--button-*-color) and stay consistent.
+  const BUTTON_SELECTOR = [
+    'main button:not([type="reset"]):not([disabled])',
+    'main a[class*="button" i]',
+    'main a[class*="btn" i]',
+    'main a[class*="cta" i]',
+    'main a[role="button"]',
+    'button:not([type="reset"]):not([disabled])',
+    'a[class*="button" i]',
+    'a[class*="btn" i]',
+    'a[role="button"]',
+  ].join(', ');
+
+  // Of all elements matching BUTTON_SELECTOR, pick the one whose background
+  // colour is most saturated (highest channel range). Brand CTAs are usually
+  // a saturated colour (red, blue, green, etc.); neutral buttons (gray,
+  // white, transparent) and icon-only buttons rank lower. Falls back to the
+  // first reasonable match if everything is neutral.
+  function pickPrimaryButton() {
+    let candidates;
+    try { candidates = [...document.querySelectorAll(BUTTON_SELECTOR)]; } catch (_) { return null; }
+    if (candidates.length === 0) return null;
+
+    let best = null;
+    let bestSaturation = -1;
+    let firstWithBg = null;
+
+    for (const el of candidates) {
+      // Skip elements that aren't visible or are zero-sized (likely icon-only / off-screen).
+      const rect = el.getBoundingClientRect();
+      const sizeOk = rect.width >= 40 && rect.height >= 20;
+      if (sizeOk) {
+        const cs = getComputedStyle(el);
+        const bg = cs.backgroundColor;
+        const m = bg.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+        const alphaMatch = bg.match(/rgba\(.*?,\s*([0-9.]+)\s*\)$/);
+        const transparent = alphaMatch && Number(alphaMatch[1]) === 0;
+        if (m && !transparent) {
+          const r = Number(m[1]);
+          const g = Number(m[2]);
+          const b = Number(m[3]);
+          if (!firstWithBg) firstWithBg = el;
+          // Channel range as a cheap saturation proxy. Pure gray has range 0;
+          // virgin red #da0530 has range 213. Threshold 20 filters near-neutral.
+          const range = Math.max(r, g, b) - Math.min(r, g, b);
+          if (range > bestSaturation) {
+            bestSaturation = range;
+            best = el;
+          }
+        }
+      }
+    }
+
+    return (bestSaturation >= 20) ? best : firstWithBg;
+  }
+
   const TOKEN_TARGETS = {
     '--background-color': ['body', 'background-color'],
     '--text-color': ['body', 'color'],
@@ -556,6 +618,12 @@ function browserExtractor() {
     '--heading-font-size-s': ['h5', 'font-size'],
     '--heading-font-size-xs': ['h6', 'font-size'],
     '--body-font-size-m': ['body', 'font-size'],
+    // Primary CTA styling — captured generically so any block CSS can
+    // reference var(--button-bg-color) etc. regardless of which transformer
+    // consumed the source button.
+    '--button-bg-color': [BUTTON_SELECTOR, 'background-color'],
+    '--button-text-color': [BUTTON_SELECTOR, 'color'],
+    '--button-radius': [BUTTON_SELECTOR, 'border-radius'],
   };
 
   const DEFAULTS = {
@@ -632,8 +700,12 @@ function browserExtractor() {
 
   function captureTokens() {
     const out = {};
+    // The button selector targets need the saturation-pick heuristic, not
+    // querySelector's "first match". Resolve it once up front.
+    const primaryButton = pickPrimaryButton();
+
     for (const [token, [selector, prop]] of Object.entries(TOKEN_TARGETS)) {
-      const el = tryQuery(selector);
+      const el = (selector === BUTTON_SELECTOR) ? primaryButton : tryQuery(selector);
       if (el) {
         const raw = getComputedStyle(el).getPropertyValue(prop).trim();
         if (raw) {

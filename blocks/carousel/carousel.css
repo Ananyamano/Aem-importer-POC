@@ -74,10 +74,10 @@
 .carousel .carousel-slide p strong a {
   display: inline-block;
   padding: 12px 24px;
-  background-color: var(--text-color);
-  color: var(--background-color);
+  background-color: var(--button-bg-color);
+  color: var(--button-text-color);
   text-decoration: none;
-  border-radius: 999px;
+  border-radius: var(--button-radius);
   font-weight: 500;
 }
 

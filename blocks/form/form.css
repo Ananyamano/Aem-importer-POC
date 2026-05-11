@@ -79,15 +79,16 @@
   font-family: var(--body-font-family);
   font-size: var(--body-font-size-s);
   font-weight: 600;
-  color: var(--background-color);
-  background-color: var(--link-color);
+  color: var(--button-text-color);
+  background-color: var(--button-bg-color);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--button-radius);
   cursor: pointer;
+  filter: brightness(1);
 }
 
 .form button[type="submit"]:hover {
-  background-color: var(--link-hover-color);
+  filter: brightness(0.9);
 }
 
 .form .form-status {

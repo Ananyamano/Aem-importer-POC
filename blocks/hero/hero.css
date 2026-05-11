@@ -1,37 +1,115 @@
-.hero-container .hero-wrapper {
-  max-width: unset;
-  padding: 0;
-}
+/* hero block — generated from https://www.virginatlantic.com/en-US on 2026-05-11T07:07:12.201Z */
+
+/* Review and prune: position:absolute, fixed widths, and parent-relative values may not apply in EDS context. */
 
 .hero {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 48px 40px;
+  height: 803px;
   position: relative;
-  padding: 40px 24px;
-  min-height: 300px;
+  inset: 0;
+  overflow: hidden;
+  color: var(--link-color);
+  background-size: cover;
+  background-position: 50% 50%;
+  border: 0 none rgb(3 12 22);
+  outline: rgb(3 12 22) none 3px;
+  font-family: var(--heading-font-family);
+  font-size: var(--body-font-size-m);
+  font-weight: 325;
+  font-style: normal;
+  line-height: var(--heading-font-size-xl);
 }
 
 .hero h1 {
-  max-width: 1200px;
-  margin-left: auto;
-  margin-right: auto;
-  color: var(--background-color);
+  width: 247px;
+  height: 160px;
+  color: var(--link-color);
+  border: 0 none rgb(3 12 22);
+  outline: rgb(3 12 22) none 3px;
+  font-family: var(--heading-font-family);
+  font-size: 32px;
+  font-weight: 325;
+  font-style: normal;
+  line-height: 40px;
 }
 
 .hero picture {
-  position: absolute;
-  z-index: -1;
-  inset: 0;
-  object-fit: cover;
-  box-sizing: border-box;
+  max-width: 100%;
+  overflow: clip;
+  color: var(--link-color);
+  border: 0 none rgb(3 12 22);
+  outline: rgb(3 12 22) none 3px;
+  font-family: var(--heading-font-family);
+  font-size: var(--body-font-size-m);
+  font-weight: 325;
+  font-style: normal;
+  line-height: var(--heading-font-size-xl);
 }
 
-.hero img {
-  object-fit: cover;
-  width: 100%;
-  height: 100%;
+.hero .button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  width: 247px;
+  height: 42px;
+  color: var(--background-color);
+  background-color: #da0530;
+  border: 1px solid rgb(0 0 0 / 0%);
+  border-radius: 4px;
+  outline: rgb(255 255 255) none 3px;
+  font-family: var(--heading-font-family);
+  font-size: 14px;
+  font-weight: 325;
+  font-style: normal;
+  line-height: 22px;
+  text-align: center;
+}
+
+@media (width >= 600px) {
+  .hero {
+    justify-content: center;
+    align-items: stretch;
+    height: 472px;
+  }
+
+  .hero h1 {
+    width: 512px;
+    height: 96px;
+    font-size: 40px;
+    font-weight: 300;
+    line-height: var(--heading-font-size-xxl);
+  }
+
+  .hero picture {
+    min-height: 100%;
+    height: 472px;
+    aspect-ratio: 3 / 1;
+    z-index: -1;
+  }
+
+  .hero .button {
+    width: 205.562px;
+  }
 }
 
 @media (width >= 900px) {
   .hero {
-    padding: 40px 32px;
+    height: 534px;
+  }
+
+  .hero h1 {
+    height: 180px;
+    font-size: var(--heading-font-size-xxl);
+    line-height: 60px;
+  }
+
+  .hero picture {
+    height: 534px;
   }
 }
